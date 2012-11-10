@@ -1,13 +1,9 @@
-#for DSSCOMP
-/dev/dsscomp              0666   system     system
-
 /dev/pvrsrvkm	   0666	  root	    root
-/dev/block/mmcblk0p1      0640   root       system
-/dev/block/mmcblk0p2      0640   root       system
-/dev/block/mmcblk0p3      0640   root       system
-/dev/block/mmcblk0p4      0640   root       system
-/dev/block/mmcblk0p11     0660   radio      system
-/dev/block/mmcblk0p12     0660   root       system
+/dev/block/mmcblk0p2 0640 root		system
+/dev/block/mmcblk0p3 0640 root		system
+/dev/block/mmcblk0p4 0640 root		system
+/dev/block/mmcblk0p11     0660   system      media_rw
+/dev/block/mmcblk0p12     0660   system      media_rw
 
 /dev/ttyHS0               0600   bluetooth  bluetooth
 /dev/qemu_trace           0666   system     system
@@ -16,16 +12,11 @@
 /dev/tun                  0640   vpn        vpn
 
 # LGE RIL porting
-/dev/ttyspi*   			  0660   radio      radio
-/dev/pts*				  0660   radio   	radio
+/dev/ttyspi*			  0660	 radio		radio
+/dev/pts*	    		  0660	 radio		radio
 
-#//--[[ LGE_UBIQUIX_MODIFIED_START : hskim@mnbt.co.kr [2012.04.03] - TDMB
-#//--[[ LGE_UBIQUIX_MODIFIED_START : ymjun@mnbt.co.kr - TDMB
-# LGE_BROADCAST properties permission
-#/dev/broadcast0           0666  broadcast    root
-#/dev/ttyspi2              0666  broadcast    root
-/dev/broadcast0           0660   media      media
-#/dev/graphics/fb0         0666   root       graphics
-#//--]] LGE_UBIQUIX_MODIFIED_END : ymjun@mnbt.co.kr - TDMB
-#//--]] LGE_UBIQUIX_MODIFIED_END : hskim@mnbt.co.kr [2012.04.03] - TDMB
-
+#audio 
+/dev/pcmC0D0c             0660   audio      audio
+/dev/pcmC0D0p             0660   audio      audio
+/dev/controlC0            0660   audio      audio
+/dev/timer                0660   audio      audio
