@@ -901,6 +901,11 @@ service wp2p_dhcpcd /system/bin/dhcpcd -BKLA -d  p2p0.1
 	oneshot
 # LGE_CHANGE_E, [WiFi Direct][byungung.min@lge.com <MDS>], 20120323
 
+service lge-tweak-setup /system/bin/sh /system/bin/init-tweak.sh
+	class main
+	user root
+	oneshot
+
 # RIP-13109 : To access NV area, RILD should have group id of 'media_rw' :  byeonggeun.kim@lge.com [START]
 service ril-daemon /system/bin/rild
    class main
