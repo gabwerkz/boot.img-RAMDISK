@@ -1,8 +1,12 @@
+#created by sh.kwon@lge.com
+
 #capp_service
 import init.lge.rc
 
-# USB
+#LGE_CHANGE_S pyocool.cho@lge.com 2012-06-18 "blackg -> black"
+#import init.blackg.usb.rc 
 import init.black.usb.rc
+#LGE_CHANGE_S pyocool.cho@lge.com 2012-06-18 "blackg -> black"
 
 # LGE_RIL
 import init.lge.ril.rc
@@ -10,14 +14,13 @@ import init.lge.ril.rc
 on init
 
     #for debugging, Please delete this script at release time 
-#    loglevel 7
-
+    loglevel 7 
     start bootlogo 
 
 on early-init
-
     # setup the global environment
     export EXTERNAL_STORAGE /mnt/sdcard
+    export EXTERNAL_ADD_STORAGE /mnt/sdcard/_ExternalSD
     export ASEC_ADD_MOUNTPOINT /mnt/extasec
     export LOOP_ADD_MOUNTPOINT /mnt/extobb
     export DSP_PATH /system/lib/dsp
@@ -32,6 +35,7 @@ on early-init
 	
     # create mountpoints
     mkdir /mnt/sdcard 0000 system system
+    mkdir /mnt/sdcard/_ExternalSD 0000 system system
     mkdir /mnt/extsecure 0700 root root
     mkdir /mnt/extsecure/staging 0700 root root
     mkdir /mnt/extsecure/extasec  0700 root root
@@ -45,54 +49,48 @@ on early-init
 
     # 2012.07.03 youmi.jun : To fix issue when CAMERA IPP enabled
     symlink /system/lib /lib
-    
-# LGE_CHANGE_S, bae.cheolhwan@lge.com, 2011-05-16. Modify a UTS issue (permission issue).
-    mkdir /tmp 01771 root system
 
+    # LGE_CHANGE_S, bae.cheolhwan@lge.com, 2011-05-16. Modify a UTS issue (permission issue).
+    mkdir /tmp 01771 root system
+    
+    #FOTA
+    mkdir /dms 0770 ktdmc ktdmc
+     
 #[LGE_start] hyunwoong.ahn
     mkdir /dvp 0771 system system
     mkdir /dvp/hwkey 0771 system system
     mkdir /dvp/userdata 0771 system system
 #[LGE_end] hyunwoong.ahn
 
-# 20121005,sm9999.ju@lge.com, Change path for OMA 2.0[START]
 # 20120607, lovespreads, for widevine DRM ++
 # Start : Set widevine drm keybox repository
-    mkdir /lgdrm 0770 drm system  
+#    mkdir /lgdrm 0770 drm system  
     mkdir /drm 0770 drm system  
     mkdir /drm/widevine 0770 drm system  
 # End : Set widevine drm keybox repository
 # 20120607, lovespreads, for widevine DRM --
-# 20121005,sm9999.ju@lge.com, Change path for OMA 2.0[END]
-    
-on fs
 
+on fs
     # Mount /system
     mount ext4 /dev/block/mmcblk0p8 /system wait ro
-
     setprop ro.crypto.tmpfs_options size=128m,mode=0771,uid=1000,gid=1000
     
     mount ext3 /dev/block/mmcblk0p6 /dvp/hwkey nosuid nodev
     chown system system /dvp/hwkey
     chown system divxdrm /dvp/hwkey/key.hw
     chmod 0660 /dvp/hwkey/key.hw        
-
     mount ext3 /dev/block/mmcblk0p6 /dvp/userdata nosuid nodev
     chown system divxdrm /dvp/userdata
     chmod 0770 /dvp/userdata
 
-# 20121005,sm9999.ju@lge.com, Change path for OMA 2.0[START]
 # 20120607, lovespreads, for widevine DRM ++
 # Start : Set widevine drm keybox repository
-  mount ext4 /dev/block/mmcblk0p5 /lgdrm nosuid nodev
+#    mount ext4 /dev/block/mmcblk0p5 /lgdrm nosuid nodev
     mount ext4 /dev/block/mmcblk0p5 /drm/widevine nosuid nodev
 	chown drm system /drm/widevine
 	chmod 0770 /drm/widevine
-	chown lgdrm system /lgdrm
-	chmod 0770 /lgdrm
 # End : Set widevine drm keybox repository
 # 20120607, lovespreads, for widevine DRM --
-# 20121005,sm9999.ju@lge.com, Change path for OMA 2.0[END]
 
     #convert ext3 to ext4 
     exec /system/bin/tune2fs -o extents,uninit_bg,dir_index /dev/block/mmcblk0p9
@@ -100,53 +98,84 @@ on fs
     #repair automatically file system
     exec /system/bin/e2fsck -p /dev/block/mmcblk0p9
 
+    # Executing tune2fs to reserve some region in /data. (40MB)
+    exec /system/bin/tune2fs -u system -r 10240 /dev/block/mmcblk0p9
+
     # Mount /data
     mount ext4 /dev/block/mmcblk0p9 /data wait noatime nosuid nodev nomblk_io_submit,noauto_da_alloc
 
     # Mount /cache
-    mount ext4 /dev/block/mmcblk0p10 /cache wait noatime nosuid nodev nomblk_io_submit
-    chown system cache /cache
-    chmod 0770 /cache
-
+    mount ext4 /dev/block/mmcblk0p16 /cache wait noatime nosuid nodev nomblk_io_submit
+    # Mount /system/vendor
+        mount ext4 /dev/block/mmcblk0p10 /system/vendor wait noatime nosuid nodev nomblk_io_submit
+   
+    #FOTA
+    mount ext4 /dev/block/mmcblk0p13 /dms wait noatime nosuid nodev nomblk_io_submit
+    
+    #exec /system/bin/sh /system/etc/format_recovery.sh
+   
 on post-fs-data
 
     # create basic filesystem structure
     mkdir /data/misc/vpn/profiles 0770 system system
+    mkdir /tmp 0775
+   
 
     # Begin Immersion changes
-	mkdir /dev/pipes 0771 shell shell
+    mkdir /dev/pipes 0771 shell shell
     #make ringtone,alarm property directory
 # 20120528, lovespreads@mnbt.co.kr     ++ 
 #    mkdir /data/audioprop 0775 system system
     mkdir /data/audioprop 0777 system system
+# 20120528, lovespreads@mnbt.co.kr --    
+    # LGE_CHANGE_S, [WiFi][hayun.kim@lge.com, moon-wifi@lge.com], 20120320, for LU6800 ICS Upgrade
+    # Create the directories used by the Wireless subsystem
+    #mkdir /data/misc/wifi 0775 wifi wifi
+    
+    #setprop wifi.supplicant_scan_interval 20
+    setprop wifi.interface wlan0
+    # LGE_CHANGE_E, [WiFi][hayun.kim@lge.com, moon-wifi@lge.com], 20120320, for LU6800 ICS Upgrade
+        
+    # for KT KAF 
+    mkdir /data/misc/wifi/kaf 0771 system wifi 
+    chown wifi system /data/misc/wifi/kaf/wifi.db
+    chmod 0777 /data/misc/wifi/kaf/wifi.db
+    mkdir /data/bin 0775 system system
+    mkdir /data/lib 0775 system system
+    mkdir /data/misc/wifi 0771 wifi system
+    mkdir /data/misc/dhcp 0770 dhcp system
+    mkdir /data/misc/wifi/sockets 0770 wifi wifi
+    chown dhcp system /data/misc/dhcp
 
-# LGE_CHANGE_S, [WiFi][hayun.kim@lge.com, moon-wifi@lge.com], 20120320, for LU6800 ICS Upgrade  
-# Create the directories used by the Wireless subsystem  
-	mkdir /data/misc/wifi 0775 wifi system  
-	mkdir /data/misc/wifi/sockets 0770 wifi wifi  
-	mkdir /data/misc/dhcp 0770 dhcp system  
-	chown dhcp system /data/misc/dhcp  
-
-    # setprop wifi.supplicant_scan_interval 20  
-	setprop wifi.interface wlan0  
-# LGE_CHANGE_E, [WiFi][hayun.kim@lge.com, moon-wifi@lge.com], 20120320, for LU6800 ICS Upgrade 
-	
+    #LGE_CHANGE Start  KT KAF 1.3 - 2012-02-15 pjy.park@lge.com
+    chown ktdbs ktdbs /system/etc/ktdbs
+    chmod 0550 /system/etc/ktdbs
+    chown ktdbs ktdbs /system/etc/ktdbs/preload_contentsbox.db
+    chmod 0440 /system/etc/ktdbs/preload_contentsbox.db
+    mkdir /data/ktcontents 0770 system ktapp
+    #LGE_CHANGE End  KT KAF 1.3
+    
+    # create Blue TaskManager - intelligent_killer.db 
+    mkdir /data/disk 0775 system system
+    
+    # LGE_KT_IWLAN_PORTING
+   # mkdir /data/misc/iwlan
+   # chown root root /data/misc/iwlan
+   # chmod 0777 /data/misc/iwlan
+    
     #don't add below line for verification of vold 
-	setprop vold.post_fs_data_done 1
-
+    setprop vold.post_fs_data_done 1
 # LGE_UPDATE_S yangwook.lim for usb serial
     chmod 0777 /dev/ttyGS0
 	chmod 0777 /dev/ttyGS1
 	chmod 0777 /dev/ttyGS2
-	
+
     chmod 0777 /dev/input/event4
     chmod 0777 /dev/input/event5
     chmod 0777 /dev/input/event6
 
-#[[ 20121007 jonghyun.seon@lge.com fix AT Command : AT%GKPD (change file permission)
-	chmod 0664 /sys/devices/platform/omap/omap_i2c.1/i2c-1/1-004a/twl4030_keypad/key_test_mode
-	chown radio system /sys/devices/platform/omap/omap_i2c.1/i2c-1/1-004a/twl4030_keypad/key_test_mode
-#]] 20121007 jonghyun.seon@lge.com fix AT Command : AT%GKPD (change file permission)
+	chmod 0644 /sys/devices/platform/omap/omap_i2c.1/i2c-1/1-004a/twl4030_keypad/key_test_mode
+	chown system system /sys/devices/platform/omap/omap_i2c.1/i2c-1/1-004a/twl4030_keypad/key_test_mode
 # LGE_UPDATE_E
 
     # LGE_CHANGE_S,[hankyung.kim@lge.com] 2012-05-04, Log service
@@ -156,7 +185,7 @@ on post-fs-data
     chmod 0771 /data/logger
     # Log Service [END]
     # LGE_CHANGE_E,[hankyung.kim@lge.com] 2012-05-04, Log service 2012-06-14 modified by pycool.cho@lge.com
-
+    
     copy /proc/last_kmsg /data/logger/last_kmsg
     copy /proc/last_kmsg /data/dontpanic/last_kmsg
     chmod 744 /data/logger/last_kmsg
@@ -170,10 +199,8 @@ on post-fs-data
 # GPS GPIO Setting - refer gps_gpio.c(android\kernel\drivers\p940\misc)
     chown system system /sys/devices/platform/hub_gps_gpio/poweron
     chown system system /sys/devices/platform/hub_gps_gpio/reset
-
 # GPS UART Setting 
     chown system system /dev/ttyO0
-
 # GPS RIL port Setting 
     chown system system /dev/pts17
 # glgps & libgps & log setting
@@ -207,14 +234,13 @@ on post-fs-data
 
 
 on boot 
-
     # Set mpu freq to 1GHz at boot time.
     write /sys/power/vdd1_opp 4
     
-	setprop ro.crypto.keyfile.userdata /dev/block/mmcblk0p9
+    setprop ro.crypto.keyfile.userdata /dev/block/mmcblk0p9
 
     #kernel debug 
-	mount debugfs /sys/kernel/debug /sys/kernel/debug
+    mount debugfs /sys/kernel/debug /sys/kernel/debug
 
     # brightness properties
     setprop ro.lge.lcd_default_brightness  83 
@@ -242,7 +268,7 @@ on boot
 	write /sys/devices/system/cpu/cpufreq/interactive/hispeed_freq 800000
 
 	#Enablig DVFS with ondemand governor
-	write /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor interactive
+	write /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor ondemand
 	write /sys/devices/system/cpu/cpufreq/ondemand/sampling_rate 50000
 	write /sys/devices/system/cpu/cpufreq/ondemand/up_threshold 60
 
@@ -276,13 +302,12 @@ on boot
     chmod 0777 /dev/snd/pcmC0D0p
     chmod 0777 /dev/snd/pcmC0D1c
     chmod 0777 /dev/snd/pcmC0D1p
-    
+
 # pm
 	chmod 0644 /sys/kernel/debug/pm_debug/voltage_off_while_idle
 
 # bluetooth
     chown bluetooth bluetooth /dev/ttyO1  
-
     # Power control interface
     chmod 0660 /sys/class/rfkill/rfkill0/state
     chmod 0660 /sys/class/rfkill/rfkill0/type
@@ -293,7 +318,6 @@ on boot
     chown bluetooth bluetooth /sys/class/rfkill/rfkill1/state
     chown bluetooth bluetooth /sys/class/rfkill/rfkill1/type
     write /sys/class/rfkill/rfkill0/state 0
-
     # FactoryTest AT command
     chmod 0660 /sys/devices/platform/bd_address/bdaddr_if
     chown radio radio /sys/devices/platform/bd_address/bdaddr_if
@@ -307,14 +331,13 @@ on boot
 
     # High speed settings
     setprop service.btui.ampstate 0
-
 # LG_BTUI : X3_BT_bringup - kukdong.bae@lge.com [E]
 # change permissions for modem
     chmod 0660 /dev/ttyspi0
     chown radio radio /dev/ttyspi0
     chmod 0660 /dev/ttyspi1
     chown radio radio /dev/ttyspi1
-
+    
     # change permissions for bridge.  Symlink search directory
     chmod 0777 /dev/DspBridge
 
@@ -327,9 +350,10 @@ on boot
     chmod 0777 /dev/video2
 
 # TI Patch (If12e9caa) : permissions for isp resizer sysfs entries	
-		chmod 0777 /sys/devices/platform/dsscomp/isprsz/enable
+		chmod 0775 /sys/devices/platform/dsscomp/isprsz/enable
+
     chmod 0777 /dev/dsscomp
-    chmod 0777 /dev/ion
+		chmod 0777 /dev/ion
 
 # change permissions for overlay managers and display devices
     chmod 0777 /sys/devices/platform/omapdss/manager0/name
@@ -363,12 +387,13 @@ on boot
     # Set timeout value for rmnet stats.
     write /sys/devices/virtual/net/rmnet0/timeout_suspend 5000000
 
+
     # Permissions for setting the DSP Frequency
     chown media root /sys/power/dsp_freq
 
     # vibrator
     chown shell system /dev/tspdrv
-    chmod 0660 /dev/tspdrv  
+    chmod 0660 /dev/tspdrv
 
  #Define modem related settings
     setprop ro.radio.use-ppp yes
@@ -377,7 +402,7 @@ on boot
 
     # SGX driver
     chmod 0666 /dev/pvrsrvkm
-	
+
    #Modify a hidden reset fuction.
     chown system system /sys/power/hidden_reset
     chmod 0664 /sys/power/hidden_reset
@@ -387,30 +412,8 @@ on boot
      # change permission factory test
     chmod 0775 /proc/driver/hmuic
     chown radio system /proc/driver/hmuic
-
-#modify soc-audio permission
-    chown system system /sys/devices/platform/soc-audio/codec_reg
-    chmod 771 /sys/devices/platform/soc-audio/IFX_CALL/codec_reg 
-    chown system system /sys/bus/i2c/drivers/wm9093/2-006e/wm9093_data
-    chown system system /sys/devices/platform/soc-audio/IFX_CALL/codec_reg 
-    chown system system /sys/devices/platform/soc-audio/TWL4030_FM/codec_reg
-    chmod 644 /sys/devices/platform/soc-audio/TWL4030_FM/codec_reg
-    chown system system /sys/devices/platform/soc-audio/TWL4030_I2S/codec_reg
-    chmod 644 /sys/devices/platform/soc-audio/TWL4030_I2S/codec_reg
-    chown system system /sys/devices/platform/soc-audio/TWL4030_PCM/codec_reg
-    chmod 644 /sys/devices/platform/soc-audio/TWL4030_PCM/codec_reg
-
-# Batt gauge error detection
-    chown radio system /sys/bus/platform/drivers/twl4030_bci/twl4030_bci/gauge_if
-    chmod 0664 /sys/bus/platform/drivers/twl4030_bci/twl4030_bci/gauge_if
-
-# Batt. Fuel gauge & AT%fuelrst (form jonghyun.seon@lge.com)LGE CHANGE 20121015 subum.choi@lge.com 
-    chmod 0664 /sys/bus/i2c/devices/2-0036/state
-    chown radio system /sys/bus/i2c/devices/2-0036/state
-
-### checking.... subum.choi@lge.com
-## chmod 0644 /sys/devices/platform/i2c_omap.1/i2c-1/1-004a/twl4030_keypad/key_test_mode
-## chown system system /sys/devices/platform/i2c_omap.1/i2c-1/1-004a/twl4030_keypad/key_test_mode
+    chmod 0644 /sys/devices/platform/i2c_omap.1/i2c-1/1-004a/twl4030_keypad/key_test_mode
+    chown system system /sys/devices/platform/i2c_omap.1/i2c-1/1-004a/twl4030_keypad/key_test_mode
     
      #LED Permission is modified.
     	chmod 0664 /sys/devices/platform/omapdss/display0/name
@@ -428,6 +431,8 @@ on boot
 	chmod 0644 /sys/devices/platform/omapdss/overlay0/enabled
 	chmod 0644 /sys/devices/platform/omapdss/overlay1/enabled
 	chmod 0644 /sys/devices/platform/omapdss/overlay2/enabled
+	chmod 0644 /sys/devices/platform/omapdss/manager0/name
+	chmod 0644 /sys/devices/platform/omapdss/manager1/name
 	chmod 0644 /sys/devices/platform/omapdss/manager0/display
 	chmod 0644 /sys/devices/platform/omapdss/manager1/display
 	chmod 0644 /sys/devices/platform/omapdss/manager0/trans_key_enabled
@@ -449,70 +454,70 @@ on boot
 	chmod 0664 /sys/devices/platform/i2c_omap.2/i2c-2/2-0060/leds/lcd-backlight/als
 	chown system system /sys/devices/platform/i2c_omap.2/i2c-2/2-0060/leds/lcd-backlight/als
 	write /sys/devices/platform/omapdss/manager0/alpha_blending_enabled 1
-
-	chmod 0664 /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x15
-	chown system system /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x15
-	chmod 0664 /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x14
-	chown system system /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x14  
-	chmod 0664 /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x13
-	chown system system /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x13  
-	chmod 0664 /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x12
-	chown system system /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x12  
-	chmod 0664 /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x11
-	chown system system /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x11  
-	chmod 0664 /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x10
-	chown system system /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x10  
-	chmod 0664 /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x0F
-	chown system system /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x0F  
-	chmod 0664 /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x0E
-	chown system system /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x0E  
-	chmod 0664 /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x0D
-	chown system system /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x0D 
-	chmod 0664 /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x0C
-	chown system system /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x0C  
-	chmod 0664 /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x0B
-	chown system system /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x0B  
-	chmod 0664 /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x0A
-	chown system system /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x0A  
-	chmod 0664 /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x09
-	chown system system /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x09  
-	chmod 0664 /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x08
-	chown system system /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x08  
-	chmod 0664 /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x07
-	chown system system /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x07  
-	chmod 0664 /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x06
-	chown system system /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x06  
-	chmod 0664 /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x05
-	chown system system /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x05  
-	chmod 0664 /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x04
-	chown system system /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x04  
-	chmod 0664 /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x03
-	chown system system /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x03  
-	chmod 0664 /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x02
-	chown system system /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x02  
-	chmod 0664 /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x01
-	chown system system /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x01  
-	chmod 0664 /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x00	
-	chown system system /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/0x00  
-	chmod 0664 /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/led_brightness	
-	chown system system /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/led_brightness 
-	chmod 0664 /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/led_sync
-	chown system system /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/led_sync 
-	chmod 0664 /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/led_testmode	
-	chown system system /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/led_testmode
-	chmod 0664 /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/led_onoff
-	chown system system /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/led_onoff
-	chmod 0664 /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/led_start
-	chown system system /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/led_start
-#	chmod 0664 /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/blink_enable
-	chmod 0664 /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/blink_enable
-#	chown system system /sys/devices/platform/i2c_omap.2/i2c-2/2-001a/blink_enable
-	chown system system /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/blink_enable
-	chmod 0664 /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-0020/fw
-	chown system shell /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-0020/fw
-	chmod 0664 /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-0020/gripsuppression
-	chown system system /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-0020/gripsuppression
-
+# S[, LED Permission for CTS.
+    chmod 0664 /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-0036/state
+    chown system system /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-0036/state
+    chmod 0664 /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x15
+    chown system system /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x15
+    chmod 0664 /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x14
+    chown system system /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x14  
+    chmod 0664 /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x13
+    chown system system /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x13  
+    chmod 0664 /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x12
+    chown system system /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x12  
+    chmod 0664 /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x11
+    chown system system /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x11  
+    chmod 0664 /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x10
+    chown system system /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x10  
+    chmod 0664 /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x0F
+    chown system system /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x0F  
+    chmod 0664 /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x0E
+    chown system system /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x0E  
+    chmod 0664 /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x0D
+    chown system system /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x0D 
+    chmod 0664 /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x0C
+    chown system system /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x0C  
+    chmod 0664 /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x0B
+    chown system system /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x0B  
+    chmod 0664 /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x0A
+    chown system system /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x0A  
+    chmod 0664 /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x09
+    chown system system /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x09  
+    chmod 0664 /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x08
+    chown system system /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x08  
+    chmod 0664 /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x07
+    chown system system /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x07  
+    chmod 0664 /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x06
+    chown system system /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x06  
+    chmod 0664 /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x05
+    chown system system /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x05  
+    chmod 0664 /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x04
+    chown system system /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x04  
+    chmod 0664 /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x03
+    chown system system /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x03  
+    chmod 0664 /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x02
+    chown system system /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x02  
+    chmod 0664 /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x01
+    chown system system /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x01  
+    chmod 0664 /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x00   
+    chown system system /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/0x00  
+    chmod 0664 /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/led_brightness 
+    chown system system /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/led_brightness 
+    chmod 0664 /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/led_sync
+    chown system system /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/led_sync 
+    chmod 0664 /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/led_testmode   
+    chown system system /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/led_testmode
+    chmod 0664 /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/led_onoff
+    chown system system /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/led_onoff
+    chmod 0664 /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/led_start
+    chown system system /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/led_start
+    chmod 0664 /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/blink_enable
+    chown system system /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-001a/blink_enable
+    chmod 0664 /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-0020/fw
+    chown system system /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-0020/fw
+    chmod 0664 /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-0020/gripsuppression
+    chown system system /sys/devices/platform/omap/omap_i2c.2/i2c-2/2-0020/gripsuppression
+# E], LED Permission for CTS.
 # [START_CommonFramework] sunkyu.yun@lge.com 2012-06-08 light sensor
 	chmod 0664 /sys/bus/i2c/devices/2-0060/leds/lcd-backlight/als_option
 	chown system system /sys/bus/i2c/devices/2-0060/leds/lcd-backlight/als_option
@@ -530,7 +535,6 @@ on boot
     chown system system /dev/akm8973_daemon
 	chown system system /dev/kxtf9_accel
     chown system system /dev/akm8973_aot
-
 # LGE_CHANGE_S, ryu.seeyeol@lge.com, 2011-02-01, Sensors Porting (MPL V3.3 Release)
     chmod 0777 /dev/mpu
     chmod 0777 /dev/mpuirq
@@ -544,65 +548,105 @@ on boot
     chown system system /dev/accel_api
     chmod 0666 /dev/motion_daemon
     chmod 0666 /dev/accel_api
-
     chown system system /sys/devices/platform/motion_sensor/accel_onoff
-    chmod 0664 /sys/devices/platform/motion_sensor/accel_onoff    
     chown system system /sys/devices/platform/motion_sensor/accel_delay
-    chmod 0664 /sys/devices/platform/motion_sensor/accel_delay    
     chown system system /sys/devices/platform/motion_sensor/compass_onoff
-    chmod 0664 /sys/devices/platform/motion_sensor/compass_onoff    
     chown system system /sys/devices/platform/motion_sensor/compass_delay
-    chmod 0664 /sys/devices/platform/motion_sensor/compass_delay    
     chown system system /sys/devices/platform/motion_sensor/tilt_onoff
-    chmod 0664 /sys/devices/platform/motion_sensor/tilt_onoff    
     chown system system /sys/devices/platform/motion_sensor/tilt_delay
-    chmod 0664 /sys/devices/platform/motion_sensor/tilt_delay    
     chown system system /sys/devices/platform/motion_sensor/gyro_onoff
-    chmod 0664 /sys/devices/platform/motion_sensor/gyro_onoff    
     chown system system /sys/devices/platform/motion_sensor/gyro_delay
-    chmod 0664 /sys/devices/platform/motion_sensor/gyro_delay    
-
-# [[ LGE_UBIQUIX_MODIFIED_START : shyun@ubiquix.com [2011.10.06] - Motion sensor permission is modified.  495   
-    chown system system /sys/devices/platform/motion_sensor/composite_onoff    
-    chown system system /sys/devices/platform/motion_sensor/composite_delay    
-
-# [[ LGE_UBIQUIX_MODIFIED_START : shyun@ubiquix.com [2011.09.28] - Motion sensor permission is modified.    
-    chown system system /sys/devices/platform/motion_sensor/cal_onoff    
-
-# [[ LGE_UBIQUIX_MODIFIED_START : shyun@ubiquix.com [2011.09.19] - Proximity sensor sysfs file path is modified.    
-    chown system system /sys/bus/i2c/drivers/black_proxi/3-0044/onoff    
-    chmod 0664 /sys/bus/i2c/drivers/black_proxi/3-0044/onoff    
-    chown system system /sys/bus/i2c/drivers/black_proxi/3-0044/delay    
-    chmod 0664 /sys/bus/i2c/drivers/black_proxi/3-0044/delay    
-
+# [[ LGE_UBIQUIX_MODIFIED_START : shyun@ubiquix.com [2011.10.06] - Motion sensor permission is modified.
+    chown system system /sys/devices/platform/motion_sensor/composite_onoff
+    chown system system /sys/devices/platform/motion_sensor/composite_delay
+# ]] LGE_UBIQUIX_MODIFIED_END : shyun@ubiquix.com [2011.10.06]- Motion sensor permission is modified.
+# [[ LGE_UBIQUIX_MODIFIED_START : shyun@ubiquix.com [2011.09.28] - Motion sensor permission is modified.
+	chown system system /sys/devices/platform/motion_sensor/cal_onoff
+# ]] LGE_UBIQUIX_MODIFIED_END : shyun@ubiquix.com [2011.09.28]- Motion sensor permission is modified.
+# [[ LGE_UBIQUIX_MODIFIED_START : shyun@ubiquix.com [2011.09.19] - Proximity sensor sysfs file path is modified.
+    chown system system /sys/bus/i2c/drivers/black_proxi/3-0044/onoff
+    chown system system /sys/bus/i2c/drivers/black_proxi/3-0044/delay
+# ]] LGE_UBIQUIX_MODIFIED_END : shyun@ubiquix.com [2011.09.19]- Proximity sensor sysfs file path is modified.
     chown system system /sys/devices/platform/motion_sensor/shake_onoff
-    chmod 0664 /sys/devices/platform/motion_sensor/shake_onoff    
     chown system system /sys/bus/i2c/drivers/kxtf9/3-000f/shake_onoff
-    chmod 0664 /sys/bus/i2c/drivers/kxtf9/3-000f/shake_onoff    
     chown system system /sys/devices/platform/motion_sensor/snap_onoff
-    chmod 0664 /sys/devices/platform/motion_sensor/snap_onoff    
     chown system system /sys/bus/i2c/drivers/kxtf9/3-000f/snap_onoff
-    chmod 0664 /sys/bus/i2c/drivers/kxtf9/3-000f/snap_onoff    
     chown system system /sys/devices/platform/motion_sensor/flip_onoff
-    chmod 0664 /sys/devices/platform/motion_sensor/flip_onoff    
     chown system system /sys/bus/i2c/drivers/kxtf9/3-000f/flip_onoff
-    chmod 0664 /sys/bus/i2c/drivers/kxtf9/3-000f/flip_onoff    
     chown system system /sys/devices/platform/motion_sensor/tap_onoff
-    chmod 0664 /sys/devices/platform/motion_sensor/tap_onoff    
     chown system system /sys/bus/i2c/drivers/kxtf9/3-000f/tap_onoff
-    chmod 0664 /sys/bus/i2c/drivers/kxtf9/3-000f/tap_onoff    
     chown system system /sys/devices/platform/motion_sensor/yawimage_onoff
-    chmod 0664 /sys/devices/platform/motion_sensor/yawimage_onoff    
     chown system system /sys/devices/platform/i2c-gpio.7/i2c-adapter/i2c-7/7-001c/checkresult
     chown system system /sys/devices/platform/i2c-gpio.7/i2c-adapter/i2c-7/7-001c/checkopmode
+# [[ LGE_UBIQUIX_MODIFIED_START : shyun@ubiquix.com [2011.09.19] - Sensors Permission is modified. For CTS Fail.
+    chmod 0664 /sys/devices/platform/motion_sensor/accel_onoff
+    chmod 0664 /sys/devices/platform/motion_sensor/accel_delay
+    chmod 0664 /sys/devices/platform/motion_sensor/compass_onoff
+    chmod 0664 /sys/devices/platform/motion_sensor/compass_delay
+    chmod 0664 /sys/devices/platform/motion_sensor/tilt_onoff
+    chmod 0664 /sys/devices/platform/motion_sensor/tilt_delay
+    chmod 0664 /sys/devices/platform/motion_sensor/gyro_onoff
+    chmod 0664 /sys/devices/platform/motion_sensor/gyro_delay
+# [[ LGE_UBIQUIX_MODIFIED_START : shyun@ubiquix.com [2011.09.19] - Proximity sensor sysfs file path is modified.
+    chmod 0664 /sys/bus/i2c/drivers/black_proxi/3-0044/onoff
+    chmod 0664 /sys/bus/i2c/drivers/black_proxi/3-0044/delay
+# ]] LGE_UBIQUIX_MODIFIED_END : shyun@ubiquix.com [2011.09.19]- Proximity sensor sysfs file path is modified.
+    chmod 0664 /sys/devices/platform/motion_sensor/shake_onoff
+    chmod 0664 /sys/bus/i2c/drivers/kxtf9/3-000f/shake_onoff
+    chmod 0664 /sys/devices/platform/motion_sensor/snap_onoff
+    chmod 0664 /sys/bus/i2c/drivers/kxtf9/3-000f/snap_onoff
+    chmod 0664 /sys/devices/platform/motion_sensor/flip_onoff
+    chmod 0664 /sys/bus/i2c/drivers/kxtf9/3-000f/flip_onoff
+    chmod 0664 /sys/devices/platform/motion_sensor/tap_onoff
+    chmod 0664 /sys/bus/i2c/drivers/kxtf9/3-000f/tap_onoff
+    chmod 0664 /sys/devices/platform/motion_sensor/yawimage_onoff
+# ]] LGE_UBIQUIX_MODIFIED_END : shyun@ubiquix.com [2011.09.19]- Sensors Permission is modified. For CTS Fail.
 
-# To disable g_ether gadget
-    setprop service.adb.tcp.port NULL
+    #FOTA	
+    chown ktdmc ktdmc /dms/triggerInfo.txt
+    chown ktdmc ktdmc /dms/state.txt
+    chown ktdmc ktdmc /dms/resultFile.txt    
+    chmod 0666 /dms/triggerInfo.txt
+    chmod 0666 /dms/state.txt
+    chmod 0666 /dms/resultFile.txt    
+    # Batt gauge error detection
+    chown radio system /sys/bus/platform/drivers/twl4030_bci/twl4030_bci/gauge_if
+    chmod 0664 /sys/bus/platform/drivers/twl4030_bci/twl4030_bci/gauge_if
+    
+    #modify soc-audio permission
+    chown system system /sys/devices/platform/soc-audio/codec_reg
+    chown system system /sys/bus/i2c/drivers/wm9093/2-006e/wm9093_data
+    chown system system /sys/devices/platform/soc-audio/IFX_CALL/codec_reg 
+    chown system system /sys/devices/platform/soc-audio/TWL4030_FM/codec_reg
+    chown system system /sys/devices/platform/soc-audio/TWL4030_I2S/codec_reg
+    chown system system /sys/devices/platform/soc-audio/TWL4030_PCM/codec_reg
+    chmod 771 /sys/devices/platform/soc-audio/IFX_CALL/codec_reg 
+    chmod 644 /sys/devices/platform/soc-audio/TWL4030_FM/codec_reg
+    chmod 644 /sys/devices/platform/soc-audio/TWL4030_I2S/codec_reg
+    chmod 644 /sys/devices/platform/soc-audio/TWL4030_PCM/codec_reg
+    
+    # To disable g_ether gadget
+   setprop service.adb.tcp.port NULL
 
-# fake mode LGE_CHANGE_S[, 20120725, mannsik.chung@lge.com, Enable charging by fake mode.
-    chown system system /sys/class/power_supply/battery/temp_control
-    chmod 0644 /sys/class/power_supply/battery/temp_control
+    # LGE_KT_IWLAN
+    setprop ro.net.iwlan 1
+    
+    # ALS
+    chmod 0664 /sys/devices/platform/i2c_omap.2/i2c-2/2-0060/leds/lcd-backlight/als
+    chown system system /sys/devices/platform/i2c_omap.2/i2c-2/2-0060/leds/lcd-backlight/als
 
+# S[, 20120725, mannsik.chung@lge.com, Enable charging by fake mode.
+# fake mode
+	chown system system /sys/class/power_supply/battery/temp_control
+	chmod 0644 /sys/class/power_supply/battery/temp_control
+# E], 20120725, mannsik.chung@lge.com, Enable charging by fake mode.
+
+
+#format internal fat partion.
+service formatfat /system/bin/sh /system/etc/format_fat32.sh
+    #classs core LGE_CHANGE 2012-06-14 pyocool.cho@lge.com "classs -> class"
+    class core
+    oneshot
 
 #For smpl
 service smpl /system/xbin/busybox ash /system/etc/smpl_count.sh
@@ -610,12 +654,6 @@ service smpl /system/xbin/busybox ash /system/etc/smpl_count.sh
 	user root
 	group root
 	oneshot
-
-service prb /sbin/prb
-    user root
-    disabled
-    oneshot
-    keycodes 114 116
 
 # Initialize the SGX driver
 service pvrsrvinit /system/bin/pvrsrvinit
@@ -626,7 +664,7 @@ service pvrsrvinit /system/bin/pvrsrvinit
 
 # Begin Immersion changes
 # TouchSense Player Service
-    service immvibed /system/bin/immvibed
+service immvibed /system/bin/immvibed
         class main
         user shell
         group shell
@@ -652,10 +690,66 @@ service baseimage /system/bin/cexec.out /system/lib/dsp/baseimage.dof
 	group audio
 	oneshot
 
+#//--[[ LGE_UBIQUIX_MODIFIED_START : hskim@mnbt.co.kr [2012.06.18] - TDMB
+#service broadcast /system/bin/libbroadcast_server
+#    class main
+#    user broadcast
+#    group system audio media sdcard_rw
+#//--]] LGE_UBIQUIX_MODIFIED_END : hskim@mnbt.co.kr [2012.06.18] - TDMB
+    
+service hresetfinished /system/bin/sh /system/bin/hiddenresetcompleted.sh
+    class main
+    user root
+    disabled
+    oneshot
 
-#For SoftAP [START] # LGE_CHANGE_S, [WiFi][hayun.kim@lge.com, moon-wifi@lge.com], 20120320, for LU6800 ICS Upgrade
+# yangwook.lim@lge.com 2012-04-27  begin
+#service ap_at_command /system/bin/ap_at_command
+#    class main
+#    user root
+#    group system input graphics media_rw sdcard_rw
+
+# yangwook.lim@lge.com 2012-04-27 end
+# LGE_CHANGE_S, [WiFi][hayun.kim@lge.com, moon-wifi@lge.com], 20120320, for LU6800 ICS Upgrade
+service kt_supplicant /system/bin/wpa_supplicant_kt -Dwext -iwlan0 -c/data/misc/wifi/wpa_supplicant.conf -dd
+	#class late_start
+	class main
+	socket wpa_wlan0 dgram 660 wifi wifi
+	user root
+	group system wifi inet
+	disabled
+	oneshot
+
+service dhcpcd_wlan0 /system/bin/dhcpcd -ABKL
+	class main
+	disabled
+	oneshot
+
+service iprenew_wlan0 /system/bin/dhcpcd -n
+	class main
+	disabled
+	oneshot
+
+service dhcpcd_eth0 /system/bin/dhcpcd -ABKL
+	class main
+	disabled
+	oneshot
+
+service dhcpcd_bnep0 /system/bin/dhcpcd -ABKL
+	class main
+	disabled
+	oneshot
+
+service iprenew_bnep0 /system/bin/dhcpcd -n
+	class main
+	disabled
+	oneshot
+
+# LGE_CHANGE_S, [WiFi][hayun.kim@lge.com, moon-wifi@lge.com], 20120320, for LU6800 ICS Upgrade
+    
+#For SoftAP [START]
 service wlan_ap_loader /system/bin/tiap_loader \
-                       -i /system/etc/wifi/softap/tiwlan_ap.ini -f /system/etc/wifi/softap/firmware_ap.bin -e /data/misc/wifi/nvs_map.bin
+	-i /system/etc/wifi/softap/tiwlan_ap.ini -f /system/etc/wifi/softap/firmware_ap.bin -e /data/misc/wifi/nvs_map.bin
     disabled
     class main
     oneshot
@@ -674,28 +768,32 @@ service ifcfg_tiap0 /system/bin/ifconfig tiap0 192.168.43.1 netmask 255.255.255.
     class main
     disabled
     oneshot
-
+    
+#for Wi-Fi Direct Station [END]
 service iwlan-daemon /system/iwlan/iwlan -ddd -i 
     class main
-
-# Mobile Hot-spot
+     
+ ## Mobile Hot-spot
 service dhcpd /system/xbin/udhcpd -f
     class main
     disabled
     oneshot   
-
-# LGE USB
+	
+#LGE USB
 service ifset_usb0 /system/bin/ifconfig usb0 192.168.1.100 up 
     class main
     oneshot
 
-
-# PCSync # yangwook.lim@lge.com 2012-06-22
+# yangwook.lim@lge.com 2012-06-22  begin
+# PCSync 
 service pcsync /system/bin/pcsync
 	class main
 	user system
+#	group input system
     group system input graphics media_rw sdcard_rw
-
+# yangwook.lim@lge.com 2012-06-22  End
+	
+# 
 #sensor daemon is starting!
 service akmd2 /system/bin/akmd2
 	class main
@@ -707,6 +805,40 @@ service motion /system/bin/motion
 	user compass
 	group system
 
+# LGE_MPDP_FEATURE START
+service pppd_gprs1 /etc/init.gprs-pppd 1
+   class main
+   user root
+   group radio cache inet misc
+   disabled
+   oneshot
+
+service pppd_gprs2 /etc/init.gprs-pppd 2
+   class main
+   user root
+   group radio cache inet misc
+   disabled
+   oneshot
+
+service pppd_gprs3 /etc/init.gprs-pppd 3
+   class main
+   user root
+   group radio cache inet misc
+   disabled
+   oneshot
+
+service pppd_gprs4 /etc/init.gprs-pppd 4
+   class main
+   user root
+   group radio cache inet misc
+   disabled
+   oneshot
+
+#for USIM OEM API of KT Android OEM Spec  
+service ktucm_d /system/bin/ktucm_d
+    class main
+    socket ktucm_d stream 666 root root
+    
 # GPS [Start]
 service glgps /system/bin/glgps -c /system/etc/gps_brcm_conf.xml
     class main
@@ -763,12 +895,10 @@ service bluetoothd /system/bin/logwrapper /system/bin/bluetoothd -d -n
     class main
     socket bluetooth stream 660 bluetooth bluetooth
     socket dbus_bluetooth stream 660 bluetooth bluetooth
-
 # init.rc does not yet support applying capabilities, so run as root and
 # let bluetoothd drop uid to bluetooth with the right linux capabilities
     group bluetooth net_bt_admin misc
     disabled  
-
 # --- BRCM  
 service bootlogo /sbin/bootlogo
 	user root
@@ -777,6 +907,10 @@ service bootlogo /sbin/bootlogo
 	onrestart write /sys/class/leds/lcd-backlight/brightness 100
 	oneshot
 
+#    service uim /system/bin/uim-sysfs
+#       user root
+#       group media bluetooth
+#       oneshot
 
 #    service hciattach /system/bin/hciattach -l
 #        user root
@@ -799,39 +933,39 @@ service bootlogo /sbin/bootlogo
 #    oneshot
 # DEJA_TEMP_E : Block for initial release
 
-# LGE_CHANGE_S, [WiFi][hayun.kim@lge.com, moon-wifi@lge.com], 20120320, for LU6800 ICS Upgrade
-service wpa_supplicant /system/bin/wpa_supplicant -Dwext -iwlan0 -c/data/misc/wifi/wpa_supplicant.conf
-	group system wifi inet
-	socket wpa_wlan0 dgram 660 wifi wifi
-	disabled
-	oneshot
+    
+#service iprenew_wlan0 /system/bin/dhcpcd -n
+#	class main
+#	disabled
+#	oneshot
 
-service dhcpcd_wlan0 /system/bin/dhcpcd -ABKL
-	disabled
-	oneshot
+#service dhcpcd_eth0 /system/bin/dhcpcd -ABKL
+#	class main
+#	disabled
+#	oneshot
 
-service iprenew_wlan0 /system/bin/dhcpcd -n
-	disabled
-	oneshot
+#service dhcpcd_bnep0 /system/bin/dhcpcd -ABKL
+#	class main
+#	disabled
+#	oneshot
 
-service dhcpcd_eth0 /system/bin/dhcpcd -ABKL
-	class main
-	disabled
-	oneshot
+#service iprenew_bnep0 /system/bin/dhcpcd -n
+#	class main
+#	disabled
+#	oneshot
+# DEJA_TEMP_E : Block for initial release
 
-service dhcpcd_bnep0 /system/bin/dhcpcd -ABKL
-	class main
-	disabled
-	oneshot
-
-service iprenew_bnep0 /system/bin/dhcpcd -n
-	class main
-	disabled
-	oneshot
-
-on property:init.svc.wpa_supplicant=stopped
-    stop dhcpcd
-# LGE_CHANGE_E, [WiFi][hayun.kim@lge.com, moon-wifi@lge.com], 20120320, for LU6800 ICS Upgrade
+#//--[[ LGE_UBIQUIX_MODIFIED_START : hskim@mnbt.co.kr [2012.05.28] - TDMB
+on boot
+	chown media media /sys/devices/platform/omapdss/manager0/dmb_coefs
+#//--]] LGE_UBIQUIX_MODIFIED_END : hskim@mnbt.co.kr [2012.05.28] - TDMB
+#//--[[ LGE_UBIQUIX_MODIFIED_START : hskim@mnbt.co.kr [2012.04.03] - TDMB
+service broadcast /system/bin/libbroadcast_server
+        class main
+        user media
+        #group system audio media graphics sdcard_rw
+        group system audio media sdcard_rw
+#//--]] LGE_UBIQUIX_MODIFIED_END : hskim@mnbt.co.kr [2012.04.03] - TDMB
 
 # LGE_CHANGE_S,[hankyung.kim@lge.com] 2012-05-03, Log service
 # Log Service [start]
@@ -901,10 +1035,25 @@ service wp2p_dhcpcd /system/bin/dhcpcd -BKLA -d  p2p0.1
 	oneshot
 # LGE_CHANGE_E, [WiFi Direct][byungung.min@lge.com <MDS>], 20120323
 
+# LGE_BSP jason.koh@lge.com RAM SWAP enable
+service swap_on_service /system/bin/sh /system/bin/swap_enable.sh
+	class main
+	user root
+	oneshot
+
 service lge-tweak-setup /system/bin/sh /system/bin/init-tweak.sh
 	class main
 	user root
 	oneshot
+
+#2012-05-18 LinkBackup jsgdd4.kim@lge.com [START] -----
+# for spritebud service of LinkBackup
+service spritebud /system/xbin/spritebud
+    socket spritebud stream 660 root radio
+    class main
+    user root
+    group root
+#2012-05-18 LinkBackup jsgdd4.kim@lge.com [END] -----
 
 # RIP-13109 : To access NV area, RILD should have group id of 'media_rw' :  byeonggeun.kim@lge.com [START]
 service ril-daemon /system/bin/rild
