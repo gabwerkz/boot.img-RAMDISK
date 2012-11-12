@@ -3,7 +3,7 @@
 import init.lge.rc
 
 # USB
-import init.blackg.usb.rc
+import init.black.usb.rc
 
 # LGE_RIL
 import init.lge.ril.rc
