@@ -425,19 +425,23 @@ service zygote /system/bin/app_process -Xzygote /system/bin --zygote --start-sys
 service drm /system/bin/drmserver
     class main
     user drm
-    group system inet drmrpc
+    group system inet drmrpc media_rw
 
 service media /system/bin/mediaserver
     class main
     user media
 #//--[[ LGE_UBIQUIX_MODIFIED_START : hskim@mnbt.co.kr [2012.04.02] - TDMB
     #group audio camera inet net_bt net_bt_admin net_bw_acct drmrpc
-    group audio camera inet net_bt net_bt_admin net_bw_acct drmrpc sdcard_rw lgt_gid divxdrm
+    # // LGE_DEL : 20121106 subum.choi@lge.com
+    #group audio camera inet net_bt net_bt_admin net_bw_acct drmrpc sdcard_rw lgt_gid divxdrm	
 #//--]] LGE_UBIQUIX_MODIFIED_END : hskim@mnbt.co.kr [2012.04.02] - TDMB
+    # 	// LGE_MOD : 20121107 subum.choi@lge.com based on kirit added by subum.choi "sdcard_rw lgt_gid divxdrm"
+    group system audio camera graphics inet net_bt net_bt_admin net_bw_acct drmrpc sdcard_rw lgt_gid divxdrm
     ioprio rt 4
 
 #//--[[ LGE_UBIQUIX_MODIFIED_START : hskim@mnbt.co.kr [2012.04.02] - TDMB
-    onrestart restart broadcast
+    # 	// LGE_DEL : 20121106 subum.choi@lge.com	
+    #onrestart restart broadcast							
 #//--]] LGE_UBIQUIX_MODIFIED_END : hskim@mnbt.co.kr [2012.04.02] - TDMB
 
 service bootanim /system/bin/bootanimation
