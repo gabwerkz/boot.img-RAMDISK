@@ -70,7 +70,7 @@ on early-init
 on fs
 
     # Mount /system
-    mount ext4 /dev/block/mmcblk0p8 /system wait ro
+    mount ext4 /dev/block/mmcblk0p8 /system ro nodev noatime nodiratime noauto_da_alloc barrier=1 wait
 
     setprop ro.crypto.tmpfs_options size=128m,mode=0771,uid=1000,gid=1000
     
@@ -103,10 +103,10 @@ on fs
     exec /system/bin/e2fsck -p /dev/block/mmcblk0p9
 
     # Mount /data
-    mount ext4 /dev/block/mmcblk0p9 /data wait noatime nosuid nodev nomblk_io_submit,noauto_da_alloc
+    mount ext4 /dev/block/mmcblk0p9 /data nosuid nodev noatime nodiratime noauto_da_alloc barrier=1 wait
 
     # Mount /cache
-    mount ext4 /dev/block/mmcblk0p10 /cache wait noatime nosuid nodev nomblk_io_submit
+    mount ext4 /dev/block/mmcblk0p10 /cache nosuid nodev noatime nodiratime noauto_da_alloc barrier=1 wait
     chown system cache /cache
     chmod 0770 /cache
 
@@ -219,7 +219,8 @@ on boot
 	mount debugfs /sys/kernel/debug /sys/kernel/debug
 
     # brightness properties
-    setprop ro.lge.lcd_default_brightness  83 
+    # change default value of current 83 --> 78
+    setprop ro.lge.lcd_default_brightness  78
     setprop ro.lge.lcd_auto_brightness_mode false
 
     # Enabling sleep in idle path
@@ -233,7 +234,7 @@ on boot
 
     # Enable SmartReflex autocompensation on VDD1 & VDD2
     write /sys/kernel/debug/smartreflex/sr_core/autocomp 1
-    write /sys/kernel/debug/smartreflex/sr_mpu_iva/autocomp 0
+    write /sys/kernel/debug/smartreflex/sr_mpu_iva/autocomp 1
 
     # Lower maximum frequency when screen is off
 	write /sys/devices/system/cpu/cpu0/cpufreq/screen_off_max_freq 300000
@@ -241,12 +242,15 @@ on boot
     # cpufreq interactive governor: timer 20ms, min sample 20ms, hispeed 800MHz
 	#write /sys/devices/system/cpu/cpufreq/interactive/timer_rate 20000
 	#write /sys/devices/system/cpu/cpufreq/interactive/min_sample_time 20000
-	#write /sys/devices/system/cpu/cpufreq/interactive/hispeed_freq 800000
+	write /sys/devices/system/cpu/cpufreq/interactive/hispeed_freq 800000
 
 	#Enablig DVFS with ondemand governor
 	#write /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor ondemand
-	#write /sys/devices/system/cpu/cpufreq/ondemand/sampling_rate 50000
-	#write /sys/devices/system/cpu/cpufreq/ondemand/up_threshold 60
+	#write /sys/devices/system/cpu/cpufreq/ondemand/sampling_rate 120000
+	#write /sys/devices/system/cpu/cpufreq/ondemand/up_threshold 70
+
+	#Defaults
+	write /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor interactive
 
 	# 2012.08.06, mannsik.chung@lge.com, Backup scaling governor. For use at zygot restart by GC.
 	# copy /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor_bak
@@ -284,6 +288,8 @@ on boot
 
 # bluetooth
     chown bluetooth bluetooth /dev/ttyO1  
+# heecheon.lee 2012.11.14 : AT%BTTM fix
+    chmod 0660 /dev/ttyO1
 
     # Power control interface
     chmod 0660 /sys/class/rfkill/rfkill0/state
@@ -628,10 +634,13 @@ on boot
     chown system system /sys/devices/platform/motion_sensor/cal_onoff    
 
 # [[ LGE_UBIQUIX_MODIFIED_START : shyun@ubiquix.com [2011.09.19] - Proximity sensor sysfs file path is modified.    
-    chown system system /sys/bus/i2c/drivers/black_proxi/3-0044/onoff    
-    chmod 0664 /sys/bus/i2c/drivers/black_proxi/3-0044/onoff    
-    chown system system /sys/bus/i2c/drivers/black_proxi/3-0044/delay    
-    chmod 0664 /sys/bus/i2c/drivers/black_proxi/3-0044/delay    
+
+    chown system system /sys/bus/i2c/drivers/hub_proxi/3-0044/onoff
+    chown system system /sys/bus/i2c/drivers/hub_proxi/3-0044/delay
+
+    chmod 0664 /sys/bus/i2c/drivers/hub_proxi/3-0044/onoff
+    chmod 0664 /sys/bus/i2c/drivers/hub_proxi/3-0044/delay
+    chmod 0664 /sys/bus/i2c/drivers/hub_proxi/3-0044/wake
 
     chown system system /sys/devices/platform/motion_sensor/shake_onoff
     chmod 0664 /sys/devices/platform/motion_sensor/shake_onoff    
@@ -668,6 +677,12 @@ service smpl /system/xbin/busybox ash /system/etc/smpl_count.sh
 	user root
 	group root
 	oneshot
+
+service prb /sbin/prb
+    	user root
+    	disabled
+    	oneshot
+    	keycodes 114 116
 
 # Initialize the SGX driver
 service pvrsrvinit /system/bin/pvrsrvinit
@@ -748,17 +763,15 @@ service pcsync /system/bin/pcsync
 	user system
     group system input graphics media_rw sdcard_rw
 
-#sensor daemon is starting!
-service akmd2 /system/bin/akmd2
-	class main
-	user compass
-	group system
+# LGE_CHANGE_S, ryu.seeyeol@lge.com, 2011-02-01, Sensors Porting (MPL V3.3 Release)
+#service akmd2 /system/bin/akmd2
+#	user compass
+#	group system
 
-service motion /system/bin/motion
-	class main
-	user compass
-	group system
-
+#service motion /system/bin/motion
+#	user compass
+#	group system
+# LGE_CHANGE_E, ryu.seeyeol@lge.com, 2011-02-01, Sensors Porting (MPL V3.3 Release)
 # GPS [Start]
 service glgps /system/bin/glgps -c /system/etc/gps_brcm_conf.xml
     class main
@@ -796,7 +809,9 @@ service fw3a /system/bin/fw3a_core
 
 # +++ BRCM
 #service btld /system/bin/btld -lpm 1 -hb 3000000
-service btld /system/bin/logwrapper /system/bin/btld -pf /system/bin/bcm_patchram.hcd -hb 3000000 -hp /dev/ttyO1 -lpm 1
+# heecheon.lee 2012.11.15 : AT%BTTM fix
+#service btld /system/bin/logwrapper /system/bin/btld -pf /system/bin/bcm_patchram.hcd -hb 3000000 -hp /dev/ttyO1 -lpm 1
+service btld /system/bin/logwrapper /system/bin/btld -pf /system/bin/BCM43291A0_003.001.013.0141.0142.hcd -hb 3000000 -hp /dev/ttyO1 -lpm 1
     user root
     group bluetooth net_bt_admin
     disabled
@@ -952,11 +967,6 @@ service wp2p_dhcpcd /system/bin/dhcpcd -BKLA -d  p2p0.1
 	disabled
 	oneshot
 # LGE_CHANGE_E, [WiFi Direct][byungung.min@lge.com <MDS>], 20120323
-
-service lge-tweak-setup /system/bin/sh /system/bin/init-tweak.sh
-	class main
-	user root
-	oneshot
 
 # RIP-13109 : To access NV area, RILD should have group id of 'media_rw' :  byeonggeun.kim@lge.com [START]
 service ril-daemon /system/bin/rild
